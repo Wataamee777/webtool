@@ -205,3 +205,29 @@ async function run() {
 async function translate(q, source, target) {
   const res = await fetch("https://libretranslate.com/translate", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      q,
+      source,
+      target,
+      format: "text"
+    })
+  });
+
+  const data = await res.json();
+  return data.translatedText || q;
+}
+
+function openLang() {
+  document.getElementById("langOverlay").classList.add("show");
+}
+
+function closeLang(e) {
+  if (!e || e.target.id === "langOverlay") {
+    document.getElementById("langOverlay").classList.remove("show");
+  }
+}
+</script>
+
+</body>
+</html>
