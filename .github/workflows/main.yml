@@ -20,7 +20,7 @@ jobs:
           node-version: 20
 
       - name: Generate html list
-        run: node scripts/generate-html-list.js
+        run: node ./script/generate-html-list.js
 
       - name: Commit changes
         run: |
