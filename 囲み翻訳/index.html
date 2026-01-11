@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>囲み指定 翻訳ツール</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: 20px;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+textarea {
+  width: 100%;
+  height: 220px;
+  background: #020617;
+  color: #e5e7eb;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.controls {
+  margin: 10px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+label {
+  cursor: pointer;
+}
+
+input[type="text"] {
+  width: 64px;
+  padding: 6px;
+  border-radius: 6px;
+  border: none;
+}
+
+button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #38bdf8;
+  color: #020617;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+/* フローティング言語ボタン */
+#langHelpBtn {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: #38bdf8;
+  color: #020617;
+  font-size: 22px;
+  cursor: pointer;
+  z-index: 10000;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+}
+
+/* オーバーレイ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.overlay.show {
+  display: flex;
+}
+
+.modal {
+  background: #020617;
+  padding: 18px 22px;
+  border-radius: 12px;
+  max-width: 340px;
+  width: 90%;
+}
+
+.modal h3 {
+  margin-top: 0;
+}
+
+.modal ul {
+  padding-left: 16px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.modal li {
+  margin-bottom: 6px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>囲み指定 翻訳ツール</h2>
+
+<p>原文</p>
+<textarea id="input" placeholder='例: console.log("Hello world");'></textarea>
+
+<div class="controls">
+  <label><input type="checkbox" value="double" checked> " "</label>
+  <label><input type="checkbox" value="single"> ' '</label>
+  <label><input type="checkbox" value="paren"> ( )</label>
+  <label><input type="checkbox" value="brace"> { }</label>
+  <label><input type="checkbox" value="bracket"> [ ]</label>
+  <label><input type="checkbox" value="angle"> &lt; &gt;</label>
+</div>
+
+<div class="controls">
+  <span>言語:</span>
+  <input id="source" type="text" value="en" title="例: en / auto / fr">
+  →
+  <input id="target" type="text" value="ja" title="例: ja / en / ko">
+</div>
+
+<button onclick="run()">翻訳</button>
+
+<p>結果</p>
+<textarea id="output"></textarea>
+
+<!-- フローティングボタン -->
+<button id="langHelpBtn" onclick="openLang()">🌐</button>
+
+<!-- 言語コードオーバーレイ -->
+<div id="langOverlay" class="overlay" onclick="closeLang(event)">
+  <div class="modal">
+    <h3>言語コード対応表</h3>
+    <ul>
+      <li><b>auto</b> – 自動判定</li>
+      <li><b>en</b> – 英語</li>
+      <li><b>ja</b> – 日本語</li>
+      <li><b>ko</b> – 韓国語</li>
+      <li><b>zh</b> – 中国語</li>
+      <li><b>fr</b> – フランス語</li>
+      <li><b>es</b> – スペイン語</li>
+      <li><b>de</b> – ドイツ語</li>
+      <li><b>ru</b> – ロシア語</li>
+      <li><b>pt</b> – ポルトガル語</li>
+    </ul>
+    <button onclick="closeLang()">閉じる</button>
+  </div>
+</div>
+
+<script>
+const patterns = {
+  double: /"([^"]*)"/g,
+  single: /'([^']*)'/g,
+  paren: /\(([^()]*)\)/g,
+  brace: /\{([^{}]*)\}/g,
+  bracket: /\[([^\[\]]*)\]/g,
+  angle: /<([^<>]*)>/g
+};
+
+async function run() {
+  let text = document.getElementById("input").value;
+  const source = document.getElementById("source").value.trim();
+  const target = document.getElementById("target").value.trim();
+
+  const checked = [...document.querySelectorAll("input[type=checkbox]:checked")]
+    .map(c => c.value);
+
+  for (const key of checked) {
+    const regex = patterns[key];
+    const matches = [...text.matchAll(regex)];
+
+    for (const m of matches) {
+      const original = m[1];
+      if (!original.trim()) continue;
+
+      const translated = await translate(original, source, target);
+      text = text.replace(m[0], m[0].replace(original, translated));
+    }
+  }
+
+  document.getElementById("output").value = text;
+}
+
+async function translate(q, source, target) {
+  const res = await fetch("https://libretranslate.com/translate", {
+    method: "POST",
